@@ -101,21 +101,25 @@ st.markdown(
       [data-testid="stSidebar"] .stCaption {{
         color: rgba(255, 255, 255, 0.85);
       }}
-      /* Sidebar always open — collapse button lives in hidden header */
-      [data-testid="stSidebarCollapseButton"],
-      [data-testid="stExpandSidebarButton"],
-      [data-testid="collapsedControl"] {{
-        display: none !important;
+      /* Desktop: sidebar always open, hide collapse controls */
+      @media (min-width: 769px) {{
+        [data-testid="stSidebarCollapseButton"],
+        [data-testid="stExpandSidebarButton"],
+        [data-testid="collapsedControl"] {{
+          display: none !important;
+        }}
+        section[data-testid="stSidebar"] {{
+          transform: none !important;
+          visibility: visible !important;
+        }}
       }}
-      section[data-testid="stSidebar"] {{
-        transform: none !important;
-        visibility: visible !important;
-      }}
-      /* Hide Streamlit default header / toolbar */
-      header[data-testid="stHeader"] {{
-        display: none !important;
-        height: 0 !important;
-        visibility: hidden !important;
+      /* Hide Streamlit default header / toolbar (desktop) */
+      @media (min-width: 769px) {{
+        header[data-testid="stHeader"] {{
+          display: none !important;
+          height: 0 !important;
+          visibility: hidden !important;
+        }}
       }}
       [data-testid="stToolbar"] {{
         display: none !important;
@@ -200,9 +204,30 @@ st.markdown(
       }}
       /* Mobile / narrow screens */
       @media (max-width: 768px) {{
+        header[data-testid="stHeader"] {{
+          display: block !important;
+          height: 3.25rem !important;
+          visibility: visible !important;
+          background: #fbfbfd !important;
+          border-bottom: 1px solid #d2d2d7;
+        }}
         [data-testid="stSidebarCollapseButton"],
-        [data-testid="stExpandSidebarButton"] {{
+        [data-testid="stExpandSidebarButton"],
+        [data-testid="collapsedControl"] {{
           display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          z-index: 9999 !important;
+        }}
+        [data-testid="collapsedControl"] {{
+          position: fixed !important;
+          top: 0.65rem !important;
+          left: 0.65rem !important;
+          background: {ELISA_BLUE} !important;
+          color: #ffffff !important;
+          border-radius: 8px !important;
+          padding: 0.35rem 0.5rem !important;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
         }}
         section[data-testid="stSidebar"] {{
           min-width: 0 !important;
@@ -290,10 +315,19 @@ def _nav_pills_key() -> str:
     return f"nav_pills_{st.session_state.lang}"
 
 
-def _sync_nav_pills() -> None:
-    """Keep pill widget aligned with programmatic page changes (e.g. sidebar)."""
-    if st.session_state.page in PAGE_KEYS:
-        st.session_state[_nav_pills_key()] = st.session_state.page
+def _apply_pending_nav() -> None:
+    """Apply sidebar / programmatic navigation without blocking pill clicks."""
+    pending = st.session_state.pop("_pending_page", None)
+    if pending in PAGE_KEYS:
+        st.session_state.page = pending
+        st.session_state[_nav_pills_key()] = pending
+
+
+def _ensure_nav_pills_init() -> None:
+    """Seed pill widget once per language — do not overwrite user selections."""
+    key = _nav_pills_key()
+    if key not in st.session_state and st.session_state.page in PAGE_KEYS:
+        st.session_state[key] = st.session_state.page
 
 
 def _save_erp_export_for_automation(*, uploaded, use_sample: bool) -> str:
@@ -345,7 +379,8 @@ def render_top_bar() -> str:
             st.session_state.lang = selected_lang
 
     with nav_col:
-        _sync_nav_pills()
+        _apply_pending_nav()
+        _ensure_nav_pills_init()
         selected_page = st.pills(
             "navigation",
             PAGE_KEYS,
@@ -385,7 +420,7 @@ forecast_method = st.sidebar.selectbox(
 run_clicked = st.sidebar.button(txt("run_analysis"), type="primary", width="stretch")
 
 if st.sidebar.button(txt("page_automation"), width="stretch"):
-    st.session_state.page = "automation"
+    st.session_state._pending_page = "automation"
     st.rerun()
 
 _stale_results = (
