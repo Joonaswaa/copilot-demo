@@ -137,19 +137,64 @@ st.markdown(
         padding-top: 0 !important;
         max-width: 100%;
       }}
-      /* Top navigation (horizontal radio) */
-      section.main div[data-testid="stRadio"] > div {{
-        flex-wrap: wrap !important;
-        gap: 0.15rem 0.75rem !important;
+      /* Apple-style top navigation bar */
+      section.main div[data-testid="stVerticalBlockBorderWrapper"]:first-of-type,
+      section.main div[data-testid="stVerticalBlock"]:first-of-type {{
+        background: #fbfbfd;
+        border-bottom: 1px solid #d2d2d7;
+        margin: 0 -2rem 0.75rem -2rem;
+        padding: 0.35rem 1.5rem 0.55rem;
+        position: sticky;
+        top: 0;
+        z-index: 998;
       }}
-      section.main div[data-testid="stRadio"] label {{
+      section.main div[data-testid="stVerticalBlock"]:first-of-type
+        [data-testid="stHorizontalBlock"] {{
+        align-items: center;
+        flex-wrap: nowrap;
+      }}
+      section.main div[data-testid="stVerticalBlock"]:first-of-type
+        [data-testid="stHorizontalBlock"] > div:first-child {{
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+      }}
+      section.main div[data-testid="stVerticalBlock"]:first-of-type
+        [data-testid="stHorizontalBlock"] > div:first-child
+        [data-testid="stPills"] > div {{
+        flex-wrap: nowrap !important;
+        width: max-content;
+        min-width: 100%;
+      }}
+      section.main div[data-testid="stVerticalBlock"]:first-of-type
+        [data-testid="stBaseButton-pills"] {{
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: #1d1d1f !important;
         font-size: 12px !important;
+        font-weight: 400 !important;
         padding: 0.35rem 0.55rem !important;
+        min-height: 0 !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
       }}
-      section.main div[data-testid="stRadio"] label[data-checked="true"],
-      section.main div[data-testid="stRadio"] label:has(input:checked) {{
+      section.main div[data-testid="stVerticalBlock"]:first-of-type
+        [data-testid="stBaseButton-pillsActive"] {{
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
         color: {ELISA_BLUE} !important;
+        font-size: 12px !important;
         font-weight: 600 !important;
+        padding: 0.35rem 0.55rem !important;
+        min-height: 0 !important;
+        white-space: nowrap !important;
+      }}
+      section.main div[data-testid="stVerticalBlock"]:first-of-type
+        [data-testid="stBaseButton-pills"]:hover {{
+        background: rgba(0, 0, 0, 0.04) !important;
       }}
     </style>
     """,
@@ -180,21 +225,38 @@ def run_pipeline(raw: pd.DataFrame, forecast_method: str,
 # ---------------------------------------------------------------------------
 
 def render_top_bar() -> str:
-    """Full-width navigation — all pages visible (radio wraps cleanly)."""
-    cur = st.session_state.page if st.session_state.page in PAGE_KEYS else PAGE_KEYS[0]
-    idx = PAGE_KEYS.index(cur)
+    """Apple-style pills nav + FI/EN language toggle (lang updates before nav labels)."""
+    nav_col, lang_col = st.columns([11, 1.2], vertical_alignment="center")
 
-    selected_page = st.radio(
-        "navigation",
-        PAGE_KEYS,
-        index=idx,
-        format_func=lambda k: txt(f"page_{k}"),
-        label_visibility="collapsed",
-        horizontal=True,
-        key=f"main_nav_{st.session_state.lang}",
-    )
-    st.session_state.page = selected_page
-    return selected_page
+    # Render language first so navigation labels use the new language immediately.
+    with lang_col:
+        selected_lang = st.pills(
+            "language",
+            ["fi", "en"],
+            default=st.session_state.lang,
+            format_func=lambda code: code.upper(),
+            label_visibility="collapsed",
+            key="topbar_lang",
+        )
+        if selected_lang in ("fi", "en") and selected_lang != st.session_state.lang:
+            st.session_state.lang = selected_lang
+            st.rerun()
+        elif selected_lang in ("fi", "en"):
+            st.session_state.lang = selected_lang
+
+    with nav_col:
+        selected_page = st.pills(
+            "navigation",
+            PAGE_KEYS,
+            default=st.session_state.page,
+            format_func=lambda k: t(f"page_{k}", st.session_state.lang),
+            label_visibility="collapsed",
+            key=f"nav_pills_{st.session_state.lang}",
+        )
+        if selected_page and selected_page in PAGE_KEYS:
+            st.session_state.page = selected_page
+
+    return st.session_state.page
 
 
 page = render_top_bar()
@@ -206,14 +268,6 @@ page = render_top_bar()
 
 st.sidebar.title(txt("app_title"))
 st.sidebar.caption(txt("app_caption"))
-
-_lang_options = {"fi": "Suomi", "en": "English"}
-st.session_state.lang = st.sidebar.selectbox(
-    txt("language"),
-    options=["fi", "en"],
-    index=0 if st.session_state.lang == "fi" else 1,
-    format_func=lambda c: _lang_options[c],
-)
 
 uploaded = st.sidebar.file_uploader(txt("upload_erp"), type=["csv", "xlsx", "xls"])
 use_sample = st.sidebar.checkbox(txt("use_sample"), value=uploaded is None)
