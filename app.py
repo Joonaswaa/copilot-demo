@@ -204,12 +204,25 @@ st.markdown(
       }}
       /* Mobile / narrow screens */
       @media (max-width: 768px) {{
+        /* Header: no white bar — only host the sidebar toggle control */
         header[data-testid="stHeader"] {{
-          display: block !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 3.25rem !important;
           height: 3.25rem !important;
+          min-height: 0 !important;
           visibility: visible !important;
-          background: #fbfbfd !important;
-          border-bottom: 1px solid #d2d2d7;
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          pointer-events: none !important;
+          overflow: visible !important;
+          z-index: 9999 !important;
+        }}
+        header[data-testid="stHeader"] > div {{
+          background: transparent !important;
+          pointer-events: none !important;
         }}
         [data-testid="stSidebarCollapseButton"],
         [data-testid="stExpandSidebarButton"],
@@ -217,12 +230,13 @@ st.markdown(
           display: flex !important;
           visibility: visible !important;
           opacity: 1 !important;
-          z-index: 9999 !important;
+          pointer-events: auto !important;
+          z-index: 10000 !important;
         }}
         [data-testid="collapsedControl"] {{
           position: fixed !important;
-          top: 0.65rem !important;
-          left: 0.65rem !important;
+          top: 0.55rem !important;
+          left: 0.55rem !important;
           background: {ELISA_BLUE} !important;
           color: #ffffff !important;
           border-radius: 8px !important;
@@ -232,13 +246,18 @@ st.markdown(
         section[data-testid="stSidebar"] {{
           min-width: 0 !important;
         }}
+        .stApp [data-testid="stAppViewContainer"] > section.main {{
+          padding-top: 0 !important;
+        }}
         .block-container {{
           padding-left: 0.75rem !important;
           padding-right: 0.75rem !important;
         }}
         section.main div[data-testid="stVerticalBlock"]:first-of-type {{
           margin: 0 -0.75rem 0.5rem -0.75rem;
-          padding: 0.3rem 0.65rem 0.45rem;
+          padding: 0.35rem 0.65rem 0.45rem 2.85rem;
+          top: 0;
+          z-index: 997;
         }}
         section.main div[data-testid="stVerticalBlock"]:first-of-type
           [data-testid="stHorizontalBlock"] {{
