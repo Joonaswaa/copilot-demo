@@ -159,6 +159,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "automation_status_warning": "Varoitus",
         "automation_status_error": "Virhe",
         "automation_download": "Lataa",
+        "automation_active_source": "Aktiivinen data: **{source}**",
+        "automation_stale_warning": "Data on vaihtunut analyysin jälkeen. Aja RPA-workflow uudelleen päivittääksesi raportit ja sähköpostiluonnoksen.",
+        "automation_run_analysis_hint": "Uusi tiedosto ladattu — paina **Aja analyysi** sivupalkissa, jotta automaatio käyttää uutta dataa.",
     },
     "en": {
         "app_title": "Supply Chain AI Copilot",
@@ -316,6 +319,9 @@ TEXTS: dict[str, dict[str, str]] = {
         "automation_status_warning": "Warning",
         "automation_status_error": "Error",
         "automation_download": "Download",
+        "automation_active_source": "Active dataset: **{source}**",
+        "automation_stale_warning": "The dataset changed after the last workflow run. Re-run the RPA workflow to refresh reports and the email draft.",
+        "automation_run_analysis_hint": "New file uploaded — click **Run analysis** in the sidebar so automation uses the new data.",
     },
 }
 

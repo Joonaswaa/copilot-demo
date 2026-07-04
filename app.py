@@ -9,6 +9,8 @@ Run locally:
 
 from __future__ import annotations
 
+import shutil
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -196,6 +198,70 @@ st.markdown(
         [data-testid="stBaseButton-pills"]:hover {{
         background: rgba(0, 0, 0, 0.04) !important;
       }}
+      /* Mobile / narrow screens */
+      @media (max-width: 768px) {{
+        [data-testid="stSidebarCollapseButton"],
+        [data-testid="stExpandSidebarButton"] {{
+          display: flex !important;
+        }}
+        section[data-testid="stSidebar"] {{
+          min-width: 0 !important;
+        }}
+        .block-container {{
+          padding-left: 0.75rem !important;
+          padding-right: 0.75rem !important;
+        }}
+        section.main div[data-testid="stVerticalBlock"]:first-of-type {{
+          margin: 0 -0.75rem 0.5rem -0.75rem;
+          padding: 0.3rem 0.65rem 0.45rem;
+        }}
+        section.main div[data-testid="stVerticalBlock"]:first-of-type
+          [data-testid="stHorizontalBlock"] {{
+          flex-wrap: wrap !important;
+          gap: 0.25rem;
+        }}
+        section.main div[data-testid="stVerticalBlock"]:first-of-type
+          [data-testid="stHorizontalBlock"] > div:last-child {{
+          flex: 0 0 auto !important;
+          margin-left: auto;
+        }}
+        section.main div[data-testid="stVerticalBlock"]:first-of-type
+          [data-testid="stHorizontalBlock"] > div:first-child {{
+          flex: 1 1 100% !important;
+          max-width: 100%;
+        }}
+        section.main div[data-testid="stVerticalBlock"]:first-of-type
+          [data-testid="stBaseButton-pills"] {{
+          font-size: 11px !important;
+          padding: 0.3rem 0.45rem !important;
+        }}
+        section.main div[data-testid="stVerticalBlock"]:first-of-type
+          [data-testid="stBaseButton-pillsActive"] {{
+          font-size: 11px !important;
+          padding: 0.3rem 0.45rem !important;
+        }}
+        div[data-testid="stMetricValue"] {{
+          font-size: 1.25rem !important;
+        }}
+        h1 {{
+          font-size: 1.45rem !important;
+        }}
+        h2, h3 {{
+          font-size: 1.05rem !important;
+        }}
+        section.main [data-testid="stHorizontalBlock"]:not(
+          div[data-testid="stVerticalBlock"]:first-of-type [data-testid="stHorizontalBlock"]
+        ) {{
+          flex-wrap: wrap !important;
+        }}
+        section.main [data-testid="column"] {{
+          min-width: 100% !important;
+          flex: 1 1 100% !important;
+        }}
+        section.main iframe {{
+          max-height: 320px !important;
+        }}
+      }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -218,6 +284,40 @@ def run_pipeline(raw: pd.DataFrame, forecast_method: str,
                  _pipeline_version: int = _PIPELINE_VERSION) -> dict:
     """Full analytics pipeline: clean -> forecast -> risk -> outputs."""
     return run_analytics_pipeline(raw, forecast_method)
+
+
+def _nav_pills_key() -> str:
+    return f"nav_pills_{st.session_state.lang}"
+
+
+def _sync_nav_pills() -> None:
+    """Keep pill widget aligned with programmatic page changes (e.g. sidebar)."""
+    if st.session_state.page in PAGE_KEYS:
+        st.session_state[_nav_pills_key()] = st.session_state.page
+
+
+def _save_erp_export_for_automation(*, uploaded, use_sample: bool) -> str:
+    """Persist the active dashboard dataset for the RPA workflow."""
+    ensure_workflow_dirs()
+    erp_dir = Path(DEFAULT_CONFIG["erp_exports_dir"])
+    if uploaded is not None and not use_sample:
+        export_path = erp_dir / uploaded.name
+        export_path.write_bytes(uploaded.getvalue())
+    else:
+        sample_src = Path("data/sample_telecom_supply_chain_data.csv")
+        export_path = erp_dir / sample_src.name
+        shutil.copy2(sample_src, export_path)
+    return str(export_path.resolve())
+
+
+def _mark_data_source_changed(export_path: str) -> None:
+    path = Path(export_path)
+    stat = path.stat()
+    fingerprint = f"{path.resolve()}:{stat.st_mtime_ns}:{stat.st_size}"
+    if st.session_state.get("data_source_key") != fingerprint:
+        st.session_state.pop("last_rpa_result", None)
+    st.session_state["data_source_key"] = fingerprint
+    st.session_state["erp_export_path"] = str(path.resolve())
 
 
 # ---------------------------------------------------------------------------
@@ -245,13 +345,13 @@ def render_top_bar() -> str:
             st.session_state.lang = selected_lang
 
     with nav_col:
+        _sync_nav_pills()
         selected_page = st.pills(
             "navigation",
             PAGE_KEYS,
-            default=st.session_state.page,
             format_func=lambda k: t(f"page_{k}", st.session_state.lang),
             label_visibility="collapsed",
-            key=f"nav_pills_{st.session_state.lang}",
+            key=_nav_pills_key(),
         )
         if selected_page and selected_page in PAGE_KEYS:
             st.session_state.page = selected_page
@@ -299,11 +399,18 @@ if run_clicked or "results" not in st.session_state or _stale_results:
     try:
         with st.spinner(txt("analysis_running")):
             if uploaded is not None and not use_sample:
-                raw = load_file(uploaded)
+                export_path = _save_erp_export_for_automation(
+                    uploaded=uploaded, use_sample=False,
+                )
+                raw = load_file(export_path)
                 source_label = uploaded.name
             else:
+                export_path = _save_erp_export_for_automation(
+                    uploaded=None, use_sample=True,
+                )
                 raw = load_sample_data()
                 source_label = "sample_telecom_supply_chain_data.csv"
+            _mark_data_source_changed(export_path)
             st.session_state["results"] = run_pipeline(raw, forecast_method)
             st.session_state["source"] = source_label
     except DataValidationError as err:
@@ -725,19 +832,33 @@ def page_automation():
     st.markdown(txt("automation_erp_folder"))
 
     ensure_workflow_dirs()
-    erp_dir = Path(DEFAULT_CONFIG["erp_exports_dir"])
-    try:
-        latest = find_latest_erp_export(erp_dir)
-        st.info(f"{latest.name} ({latest.stat().st_size // 1024} KB)")
-    except FileNotFoundError as exc:
-        st.warning(str(exc))
+    active_path = st.session_state.get("erp_export_path")
+    if active_path and Path(active_path).exists():
+        active_name = Path(active_path).name
+        st.success(txt("automation_active_source", source=active_name))
+    elif uploaded is not None and not use_sample:
+        st.info(txt("automation_run_analysis_hint"))
+        active_path = None
+    else:
+        erp_dir = Path(DEFAULT_CONFIG["erp_exports_dir"])
+        try:
+            latest = find_latest_erp_export(erp_dir)
+            active_path = str(latest.resolve())
+            st.info(f"{latest.name} ({latest.stat().st_size // 1024} KB)")
+        except FileNotFoundError as exc:
+            st.warning(str(exc))
+            active_path = None
+
+    workflow_cfg = {
+        "forecast_method": forecast_method,
+        "email_language": st.session_state.lang,
+    }
+    if active_path:
+        workflow_cfg["erp_path"] = active_path
 
     if st.button(txt("automation_run"), type="primary"):
         with st.status(txt("automation_running"), expanded=True) as status_box:
-            result = run_weekly_rpa_workflow({
-                "forecast_method": forecast_method,
-                "email_language": st.session_state.lang,
-            })
+            result = run_weekly_rpa_workflow(workflow_cfg)
             for step in result["steps"]:
                 icon = _step_icon(step["status"])
                 st.write(f"{icon} **{step['name']}** — {step['message']}")
@@ -750,6 +871,16 @@ def page_automation():
         st.session_state["last_rpa_result"] = result
 
     result = st.session_state.get("last_rpa_result")
+    current_fingerprint = st.session_state.get("data_source_key")
+    if (
+        result
+        and current_fingerprint
+        and result.get("data_source_fingerprint")
+        and result["data_source_fingerprint"] != current_fingerprint
+    ):
+        st.warning(txt("automation_stale_warning"))
+        result = None
+
     recent = load_recent_runs(limit=5)
 
     if recent:
@@ -772,7 +903,7 @@ def page_automation():
             st.subheader(txt("automation_email_preview"))
             st.caption(Path(email_path).name)
             draft_html = Path(email_path).read_text(encoding="utf-8")
-            st.components.v1.html(draft_html, height=520, scrolling=True)
+            st.components.v1.html(draft_html, height=420, scrolling=True)
             with open(email_path, "rb") as fh:
                 st.download_button(
                     txt("automation_email_download"),

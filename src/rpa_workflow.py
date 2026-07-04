@@ -337,7 +337,13 @@ def run_weekly_rpa_workflow(config: dict | None = None) -> dict:
 
     # --- 1. ERP export ---------------------------------------------------
     try:
-        erp_path = find_latest_erp_export(_resolve(cfg, "erp_exports_dir"))
+        override = cfg.get("erp_path")
+        if override:
+            erp_path = Path(override)
+            if not erp_path.is_file():
+                raise FileNotFoundError(f"Configured ERP export not found: {erp_path}")
+        else:
+            erp_path = find_latest_erp_export(_resolve(cfg, "erp_exports_dir"))
         outputs["erp_source"] = str(erp_path)
         steps.append(_step(
             STEP_ERP_FOUND, "success",
@@ -517,6 +523,14 @@ def _finalize(
         "outputs": outputs,
         "errors": errors,
     }
+    erp_src = outputs.get("erp_source")
+    if erp_src:
+        p = Path(erp_src)
+        if p.is_file():
+            stat = p.stat()
+            result["data_source_fingerprint"] = (
+                f"{p.resolve()}:{stat.st_mtime_ns}:{stat.st_size}"
+            )
     log_path = _save_run_log(result, config)
     result["outputs"]["workflow_log"] = str(log_path)
     return result
