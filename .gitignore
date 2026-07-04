@@ -1,0 +1,28 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.streamlit/secrets.toml
+
+# Runtime outputs (keep folder structure via .gitkeep)
+logs/workflow_runs/*
+!logs/workflow_runs/.gitkeep
+reports/weekly/*
+!reports/weekly/.gitkeep
+reports/archive/*
+!reports/archive/.gitkeep
+outbox/purchase_recommendations/*
+!outbox/purchase_recommendations/.gitkeep
+outbox/email_drafts/*
+!outbox/email_drafts/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+outputs/reports/*
+!outputs/reports/.gitkeep
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
