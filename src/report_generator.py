@@ -319,14 +319,14 @@ def _report_fi(today, k, stockouts, top_risks, slow, warnings,
 # ---------------------------------------------------------------------------
 
 def generate_report_llm(df, orders, slow, scorecard, warnings, kpis,
-                        language: str = "en") -> str | None:
+                        language: str = "en") -> tuple[str | None, str | None]:
     """
     Generate the report with an LLM if an API key is configured.
-    Returns None if no key is set or the call fails, so the caller can
-    fall back to the rule-based report.
+
+    Returns (report_text, error_message). On success error_message is None.
     """
     if not is_llm_configured():
-        return None
+        return None, None
 
     base = generate_report_rule_based(df, orders, slow, scorecard, warnings,
                                       kpis, language)
@@ -342,23 +342,29 @@ def generate_report_llm(df, orders, slow, scorecard, warnings, kpis,
     )
 
     try:
-        return complete(prompt)
+        return complete(prompt), None
     except Exception as exc:
-        logger.warning("LLM report generation failed: %s", exc)
-        return None
+        error = f"{type(exc).__name__}: {exc}"
+        logger.warning("LLM report generation failed: %s", error)
+        return None, error
 
 
 def generate_report(df, orders, slow, scorecard, warnings, kpis,
-                    language: str = "en") -> tuple[str, str]:
+                    language: str = "en") -> tuple[str, str, str | None]:
     """
     Public entry point: try the LLM path, fall back to rule-based.
 
-    Returns (report_text, generation_mode) where mode is 'llm' or 'rule_based'.
+    Returns (report_text, generation_mode, error_message).
     """
-    llm_report = generate_report_llm(df, orders, slow, scorecard, warnings,
-                                     kpis, language)
+    llm_report, llm_error = generate_report_llm(
+        df, orders, slow, scorecard, warnings, kpis, language,
+    )
     if llm_report:
-        return llm_report, "llm"
-    return generate_report_rule_based(
-        df, orders, slow, scorecard, warnings, kpis, language
-    ), "rule_based"
+        return llm_report, "llm", None
+    return (
+        generate_report_rule_based(
+            df, orders, slow, scorecard, warnings, kpis, language,
+        ),
+        "rule_based",
+        llm_error,
+    )

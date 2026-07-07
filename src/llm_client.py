@@ -18,7 +18,31 @@ import os
 
 from dotenv import load_dotenv
 
-load_dotenv()
+_STREAMLIT_SECRET_KEYS = (
+    "ANTHROPIC_API_KEY",
+    "OPENAI_API_KEY",
+    "LLM_PROVIDER",
+    "ANTHROPIC_MODEL",
+    "OPENAI_MODEL",
+    "LLM_MAX_TOKENS",
+)
+
+
+def apply_runtime_config() -> None:
+    """Load .env and Streamlit Secrets into os.environ (Cloud + local)."""
+    load_dotenv()
+    try:
+        import streamlit as st
+
+        if hasattr(st, "secrets"):
+            for key in _STREAMLIT_SECRET_KEYS:
+                if key in st.secrets:
+                    os.environ[key] = str(st.secrets[key])
+    except Exception:
+        pass
+
+
+apply_runtime_config()
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +53,7 @@ DEFAULT_MAX_TOKENS = 2500
 
 def resolve_provider() -> str | None:
     """Return 'anthropic', 'openai', or None if no usable key is set."""
+    apply_runtime_config()
     explicit = os.getenv("LLM_PROVIDER", "").strip().lower()
     has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
     has_openai = bool(os.getenv("OPENAI_API_KEY"))
@@ -131,7 +156,9 @@ def _complete_openai(prompt: str) -> str:
         messages=[{"role": "user", "content": prompt}],
         **_openai_max_tokens_param(model, _max_tokens()),
     )
-    text = response.choices[0].message.content
+    choice = response.choices[0]
+    text = choice.message.content
     if not text:
-        raise RuntimeError("Empty response from OpenAI")
+        reason = getattr(choice, "finish_reason", None) or "unknown"
+        raise RuntimeError(f"Empty response from OpenAI (finish_reason={reason})")
     return text.strip()

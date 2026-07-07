@@ -425,8 +425,8 @@ def run_weekly_rpa_workflow(config: dict | None = None) -> dict:
     kpis = analytics["kpis"]
     recs = analytics["recs"]
 
-    report_fi, _ = generate_report(df, orders, slow, scorecard, warnings, kpis, "fi")
-    report_en, _ = generate_report(df, orders, slow, scorecard, warnings, kpis, "en")
+    report_fi, _, _ = generate_report(df, orders, slow, scorecard, warnings, kpis, "fi")
+    report_en, _, _ = generate_report(df, orders, slow, scorecard, warnings, kpis, "en")
 
     pdf_path = weekly_dir / f"weekly_supply_chain_report_{run_id}.pdf"
     try:

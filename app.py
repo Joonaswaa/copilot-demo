@@ -805,10 +805,10 @@ def page_report():
 
     if cache_key not in st.session_state:
         with st.spinner(txt("report_generating")):
-            report_en, mode_en = generate_report(
+            report_en, mode_en, err_en = generate_report(
                 df, orders, slow, scorecard, warnings, kpis, "en",
             )
-            report_fi, mode_fi = generate_report(
+            report_fi, mode_fi, err_fi = generate_report(
                 df, orders, slow, scorecard, warnings, kpis, "fi",
             )
         st.session_state[cache_key] = {
@@ -816,13 +816,19 @@ def page_report():
             "fi": report_fi,
             "mode_en": mode_en,
             "mode_fi": mode_fi,
+            "error_en": err_en,
+            "error_fi": err_fi,
         }
 
     cached = st.session_state[cache_key]
     report_en = cached["en"]
     report_fi = cached["fi"]
+    llm_error = cached.get("error_en") or cached.get("error_fi")
     if llm_info["configured"] and cached["mode_en"] == "rule_based":
-        st.warning(txt("report_llm_fallback"))
+        if llm_error:
+            st.warning(txt("report_llm_fallback_detail", error=llm_error))
+        else:
+            st.warning(txt("report_llm_fallback"))
 
     if st.session_state.lang == "fi":
         tab_primary, tab_secondary = st.tabs([txt("tab_finnish"), txt("tab_english")])
