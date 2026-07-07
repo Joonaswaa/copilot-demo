@@ -392,8 +392,8 @@ Teksti koostuu täsmäävistä lauseista:
 
 Kaksi polkua:
 
-1. **LLM-polku** — jos `ANTHROPIC_API_KEY` tai `OPENAI_API_KEY` on `.env`-tiedostossa (tällä hetkellä kommentoitu pois → aina fallback)
-2. **Sääntöpohjainen** (oletus) — sama data, strukturoitu markdown EN + FI
+1. **LLM-polku** — jos `ANTHROPIC_API_KEY` tai `OPENAI_API_KEY` on `.env`-tiedostossa (tai Streamlit Secrets)
+2. **Sääntöpohjainen** (fallback) — sama data, strukturoitu markdown EN + FI
 
 Raportti koostuu lasketuista analytiikoista — ei erillistä laskentaa.
 
@@ -822,8 +822,8 @@ Built from matching clauses:
 
 Two paths:
 
-1. **LLM path** — if `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` is in `.env` (currently commented out → always fallback)
-2. **Rule-based** (default) — same data, structured markdown EN + FI
+1. **LLM path** — if `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` is in `.env` (or Streamlit Secrets)
+2. **Rule-based** (fallback) — same data, structured markdown EN + FI
 
 The report is assembled from computed analytics — no separate calculation layer.
 

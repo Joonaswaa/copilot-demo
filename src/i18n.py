@@ -108,6 +108,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "report_caption": "Luotu tämän viikon analyysistä. Käyttää LLM:ää, jos API-avain on "
                           "määritetty .env-tiedostossa; muuten sääntöpohjainen generaattori "
                           "tuottaa raportin samoista luvuista.",
+        "report_llm_active": "Raportti generoitu LLM:llä ({provider}, {model}).",
+        "report_rule_based": "Sääntöpohjainen raportti (LLM-avainta ei ole määritetty).",
+        "report_llm_fallback": "LLM-kutsu epäonnistui — näytetään sääntöpohjainen raportti.",
+        "report_generating": "Generoidaan raporttia...",
+        "report_regenerate": "Generoi raportti uudelleen",
         "tab_english": "English",
         "tab_finnish": "Suomi",
         "download_report_en": "Lataa raportti EN (.md)",
@@ -117,6 +122,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "download_pdf": "Lataa PDF",
         "create_pptx": "Luo PowerPoint",
         "pptx_created": "PowerPoint luotu: {path}",
+        "pptx_hybrid_note": "Deck: kaaviot datasta, yhteenveto ja toimenpiteet viikkoraportista.",
         "download_pptx_en": "Lataa deck EN (.pptx)",
         "download_pptx_fi": "Lataa deck FI (.pptx)",
         "send_email": "Lähetä sähköpostilla",
@@ -272,6 +278,11 @@ TEXTS: dict[str, dict[str, str]] = {
         "report_caption": "Generated from this week's analysis. Uses an LLM if an API "
                           "key is configured in .env; otherwise a rule-based generator "
                           "produces the report from the same numbers.",
+        "report_llm_active": "Report generated with LLM ({provider}, {model}).",
+        "report_rule_based": "Rule-based report (no LLM API key configured).",
+        "report_llm_fallback": "LLM call failed — showing rule-based report.",
+        "report_generating": "Generating report...",
+        "report_regenerate": "Regenerate report",
         "tab_english": "English",
         "tab_finnish": "Suomi",
         "download_report_en": "Download report EN (.md)",
@@ -281,6 +292,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "download_pdf": "Download PDF",
         "create_pptx": "Create PowerPoint",
         "pptx_created": "PowerPoint created: {path}",
+        "pptx_hybrid_note": "Deck: charts from data, summary and actions from the weekly report.",
         "download_pptx_en": "Download deck EN (.pptx)",
         "download_pptx_fi": "Download deck FI (.pptx)",
         "send_email": "Send by email",

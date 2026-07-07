@@ -21,12 +21,15 @@ output. The LLM path only improves fluency and adds narrative reasoning.
 
 from __future__ import annotations
 
-import os
+import logging
 from datetime import date
 
 import pandas as pd
 
 from src.kpi import high_risk_product_mask, stockout_mask
+from src.llm_client import complete, is_llm_configured
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # KPI computation shared by report + dashboard overview
@@ -321,54 +324,41 @@ def generate_report_llm(df, orders, slow, scorecard, warnings, kpis,
     Generate the report with an LLM if an API key is configured.
     Returns None if no key is set or the call fails, so the caller can
     fall back to the rule-based report.
-
-    Integration points (uncomment the block for the provider you use):
-
-    --- Anthropic Claude ---------------------------------------------------
-    # import anthropic
-    # client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-    # response = client.messages.create(
-    #     model="claude-sonnet-4-6",
-    #     max_tokens=2000,
-    #     messages=[{"role": "user", "content": prompt}],
-    # )
-    # return response.content[0].text
-
-    --- OpenAI -------------------------------------------------------------
-    # from openai import OpenAI
-    # client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    # response = client.chat.completions.create(
-    #     model="gpt-4o-mini",
-    #     messages=[{"role": "user", "content": prompt}],
-    # )
-    # return response.choices[0].message.content
     """
-    api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    if not is_llm_configured():
         return None
 
-    # The prompt reuses the rule-based report as structured input, which
-    # keeps the LLM grounded in the actual numbers (reduces hallucination).
     base = generate_report_rule_based(df, orders, slow, scorecard, warnings,
                                       kpis, language)
     lang_name = "Finnish" if language == "fi" else "English"
-    prompt = (  # noqa: F841 — used once a provider block is uncommented
+    prompt = (
         f"You are a supply chain analyst at a telecom operator. Rewrite the "
-        f"following weekly report in fluent, executive-ready {lang_name}. Keep "
-        f"every number exactly as given, keep the section structure, and add "
-        f"one short paragraph of overall interpretation to the executive "
-        f"summary.\n\n{base}"
+        f"following weekly report in fluent, executive-ready {lang_name}. "
+        f"Keep every number, currency amount, SKU code, and percentage exactly "
+        f"as given. Keep the markdown section headings and bullet structure. "
+        f"Add one short interpretive paragraph to the executive summary. "
+        f"Do not invent products, suppliers, or metrics that are not in the "
+        f"source text.\n\n{base}"
     )
 
-    # No provider block is active in the portfolio version -> fall back.
-    return None
+    try:
+        return complete(prompt)
+    except Exception as exc:
+        logger.warning("LLM report generation failed: %s", exc)
+        return None
 
 
 def generate_report(df, orders, slow, scorecard, warnings, kpis,
-                    language: str = "en") -> str:
-    """Public entry point: try the LLM path, fall back to rule-based."""
+                    language: str = "en") -> tuple[str, str]:
+    """
+    Public entry point: try the LLM path, fall back to rule-based.
+
+    Returns (report_text, generation_mode) where mode is 'llm' or 'rule_based'.
+    """
     llm_report = generate_report_llm(df, orders, slow, scorecard, warnings,
                                      kpis, language)
-    return llm_report or generate_report_rule_based(
+    if llm_report:
+        return llm_report, "llm"
+    return generate_report_rule_based(
         df, orders, slow, scorecard, warnings, kpis, language
-    )
+    ), "rule_based"

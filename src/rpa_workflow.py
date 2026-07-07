@@ -425,7 +425,8 @@ def run_weekly_rpa_workflow(config: dict | None = None) -> dict:
     kpis = analytics["kpis"]
     recs = analytics["recs"]
 
-    report_fi = generate_report(df, orders, slow, scorecard, warnings, kpis, "fi")
+    report_fi, _ = generate_report(df, orders, slow, scorecard, warnings, kpis, "fi")
+    report_en, _ = generate_report(df, orders, slow, scorecard, warnings, kpis, "en")
 
     pdf_path = weekly_dir / f"weekly_supply_chain_report_{run_id}.pdf"
     try:
@@ -439,13 +440,19 @@ def run_weekly_rpa_workflow(config: dict | None = None) -> dict:
     pptx_fi_path = weekly_dir / f"weekly_supply_chain_report_FI_{run_id}.pptx"
     pptx_ok = True
     try:
-        export_weekly_deck(df, orders, slow, scorecard, kpis, language="en", output_path=pptx_en_path)
+        export_weekly_deck(
+            df, orders, slow, scorecard, kpis, language="en",
+            output_path=pptx_en_path, report_text=report_en,
+        )
         outputs["pptx_report_en"] = str(pptx_en_path)
     except Exception as exc:
         pptx_ok = False
         steps.append(_step(STEP_PPTX, "warning", f"EN deck failed: {exc}"))
     try:
-        export_weekly_deck(df, orders, slow, scorecard, kpis, language="fi", output_path=pptx_fi_path)
+        export_weekly_deck(
+            df, orders, slow, scorecard, kpis, language="fi",
+            output_path=pptx_fi_path, report_text=report_fi,
+        )
         outputs["pptx_report_fi"] = str(pptx_fi_path)
     except Exception as exc:
         pptx_ok = False

@@ -20,6 +20,7 @@ from pathlib import Path
 from src.data_loader import DataValidationError, load_file, load_sample_data
 from src.demand_forecasting import FORECAST_WEEKS
 from src.kpi import stockout_mask
+from src.llm_client import llm_status
 from src.report_generator import generate_report
 from src.pdf_exporter import export_report_pdf
 from src.pptx_exporter import export_weekly_deck
@@ -785,8 +786,43 @@ def page_report():
     st.title(txt("report_title"))
     st.caption(txt("report_caption"))
 
-    report_en = generate_report(df, orders, slow, scorecard, warnings, kpis, "en")
-    report_fi = generate_report(df, orders, slow, scorecard, warnings, kpis, "fi")
+    llm_info = llm_status()
+    if llm_info["configured"]:
+        st.caption(txt(
+            "report_llm_active",
+            provider=llm_info["provider"],
+            model=llm_info["model"],
+        ))
+    else:
+        st.caption(txt("report_rule_based"))
+
+    cache_key = f"weekly_reports_{st.session_state.get('data_source_key', 'default')}"
+    if st.button(txt("report_regenerate")):
+        st.session_state.pop(cache_key, None)
+        st.session_state.pop("pdf_path", None)
+        st.session_state.pop("pptx_path_en", None)
+        st.session_state.pop("pptx_path_fi", None)
+
+    if cache_key not in st.session_state:
+        with st.spinner(txt("report_generating")):
+            report_en, mode_en = generate_report(
+                df, orders, slow, scorecard, warnings, kpis, "en",
+            )
+            report_fi, mode_fi = generate_report(
+                df, orders, slow, scorecard, warnings, kpis, "fi",
+            )
+        st.session_state[cache_key] = {
+            "en": report_en,
+            "fi": report_fi,
+            "mode_en": mode_en,
+            "mode_fi": mode_fi,
+        }
+
+    cached = st.session_state[cache_key]
+    report_en = cached["en"]
+    report_fi = cached["fi"]
+    if llm_info["configured"] and cached["mode_en"] == "rule_based":
+        st.warning(txt("report_llm_fallback"))
 
     if st.session_state.lang == "fi":
         tab_primary, tab_secondary = st.tabs([txt("tab_finnish"), txt("tab_english")])
@@ -825,13 +861,16 @@ def page_report():
         with st.spinner(txt("analysis_running")):
             path_en = export_weekly_deck(
                 df, orders, slow, scorecard, kpis, language="en",
+                report_text=report_en,
             )
             path_fi = export_weekly_deck(
                 df, orders, slow, scorecard, kpis, language="fi",
+                report_text=report_fi,
             )
         st.session_state["pptx_path_en"] = str(path_en)
         st.session_state["pptx_path_fi"] = str(path_fi)
         st.success(txt("pptx_created", path=path_en))
+    col4.caption(txt("pptx_hybrid_note"))
 
     if "pptx_path_en" in st.session_state:
         with open(st.session_state["pptx_path_en"], "rb") as fh:
@@ -865,9 +904,11 @@ def page_report():
             if not pptx_en or not pptx_fi:
                 pptx_en = str(export_weekly_deck(
                     df, orders, slow, scorecard, kpis, language="en",
+                    report_text=report_en,
                 ))
                 pptx_fi = str(export_weekly_deck(
                     df, orders, slow, scorecard, kpis, language="fi",
+                    report_text=report_fi,
                 ))
                 st.session_state["pptx_path_en"] = pptx_en
                 st.session_state["pptx_path_fi"] = pptx_fi

@@ -1,8 +1,8 @@
 """
 pptx_exporter.py
 ----------------
-Builds a 7-slide weekly management deck from dashboard analytics,
-matching the layout of the bundled example decks (EN / FI).
+Builds a weekly management deck from dashboard analytics,
+optionally enriched with narrative sections from the weekly report (hybrid mode).
 """
 
 from __future__ import annotations
@@ -18,6 +18,8 @@ from pptx.enum.chart import XL_CHART_TYPE
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
+
+from src.report_parsing import parse_executive_summary, parse_management_actions
 
 # Brand colours (aligned with example decks + dashboard)
 NAVY = RGBColor(0x1E, 0x27, 0x61)
@@ -75,6 +77,8 @@ LABELS = {
         "slow_title": "Slow-moving inventory",
         "slow_capital": "capital tied in {count} slow-moving SKUs",
         "actions_title": "Recommended actions",
+        "exec_summary_title": "Executive summary",
+        "exec_summary_note": "Narrative from the weekly AI report — figures match the KPI slide.",
     },
     "fi": {
         "title": "Viikoittainen toimitusketjukatsaus",
@@ -116,6 +120,8 @@ LABELS = {
         "slow_title": "Hitaasti kiertävä varasto",
         "slow_capital": "pääomaa sitoutunut {count} hitaasti kiertävään nimikkeeseen",
         "actions_title": "Toimenpidesuositukset",
+        "exec_summary_title": "Johdon yhteenveto",
+        "exec_summary_note": "Teksti viikoittaisesta AI-raportista — luvut vastaavat KPI-diaa.",
     },
 }
 
@@ -416,6 +422,34 @@ def _add_slow_slide(prs: Presentation, slow: pd.DataFrame, kpis: dict,
     )
 
 
+def _add_exec_summary_slide(prs: Presentation, summary_text: str, language: str):
+    slide = _blank_slide(prs)
+    lbl = LABELS[language]
+    _slide_title(slide, lbl["exec_summary_title"])
+
+    box = slide.shapes.add_textbox(
+        Inches(0.6), Inches(1.45), Inches(12.1), Inches(4.9),
+    )
+    tf = box.text_frame
+    tf.word_wrap = True
+    first = True
+    for para in summary_text.split("\n\n"):
+        para = para.strip()
+        if not para:
+            continue
+        p = tf.paragraphs[0] if first else tf.add_paragraph()
+        first = False
+        run = p.add_run()
+        run.text = para
+        _set_run(run, size=14, color=DARK)
+        p.space_after = Pt(12)
+
+    _textbox(
+        slide, Inches(0.6), Inches(6.55), Inches(12.1), Inches(0.45),
+        lbl["exec_summary_note"], size=9, color=MUTED,
+    )
+
+
 def _add_actions_slide(prs: Presentation, recs: list[dict], language: str):
     slide = _blank_slide(prs)
     bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
@@ -442,9 +476,19 @@ def _add_actions_slide(prs: Presentation, recs: list[dict], language: str):
 
         _textbox(slide, Inches(1.6), y - Inches(0.03), Inches(11.1), Inches(0.5),
                  rec["action"], size=14, bold=True, color=WHITE)
-        _textbox(slide, Inches(1.6), y + Inches(0.42), Inches(11.1), Inches(0.55),
-                 rec["detail"], size=11, color=RGBColor(0xD0, 0xD8, 0xF0))
-        y += Inches(0.95)
+        detail = rec.get("detail", "")
+        if detail:
+            _textbox(slide, Inches(1.6), y + Inches(0.42), Inches(11.1), Inches(0.55),
+                     detail, size=11, color=RGBColor(0xD0, 0xD8, 0xF0))
+            y += Inches(0.95)
+        else:
+            y += Inches(0.72)
+
+
+def _actions_from_report(report_text: str, language: str) -> list[dict]:
+    """Convert numbered management actions from the report into deck bullets."""
+    actions = parse_management_actions(report_text, language)
+    return [{"action": text, "detail": ""} for text in actions[:5]]
 
 
 def _deck_recommendations(
@@ -547,9 +591,13 @@ def export_weekly_deck(
     kpis: dict,
     language: str = "en",
     output_path: str | Path | None = None,
+    report_text: str | None = None,
 ) -> Path:
     """
-    Build a 7-slide weekly deck and save it. Returns the output path.
+    Build a weekly deck and save it. Returns the output path.
+
+    When ``report_text`` is provided, inserts an executive-summary slide after
+    KPIs and uses the report's management actions on the final slide.
     """
     if language not in LABELS:
         language = "en"
@@ -566,11 +614,24 @@ def export_weekly_deck(
 
     _add_title_slide(prs, language)
     _add_kpi_slide(prs, kpis, language)
+
+    exec_summary = ""
+    if report_text:
+        exec_summary = parse_executive_summary(report_text, language)
+    if exec_summary:
+        _add_exec_summary_slide(prs, exec_summary, language)
+
     _add_risk_slide(prs, df, language)
     _add_purchase_slide(prs, orders, kpis, language)
     _add_supplier_slide(prs, scorecard, language)
     _add_slow_slide(prs, slow, kpis, language)
-    deck_recs = _deck_recommendations(df, orders, slow, scorecard, language)
+
+    if report_text:
+        deck_recs = _actions_from_report(report_text, language)
+    else:
+        deck_recs = []
+    if not deck_recs:
+        deck_recs = _deck_recommendations(df, orders, slow, scorecard, language)
     _add_actions_slide(prs, deck_recs, language)
 
     prs.save(str(output_path))
