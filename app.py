@@ -36,7 +36,7 @@ from src.rpa_workflow import (
 )
 from src.i18n import (
     PAGE_KEYS, PRIORITIES, RISK_LEVELS,
-    kind_label, priority_label, risk_label, t, urgency_label,
+    kind_label, page_label, priority_label, risk_label, t, urgency_label,
 )
 from src.methodology_docs import get_methodology_sections
 
@@ -56,6 +56,10 @@ if "lang" not in st.session_state:
 if "page" not in st.session_state:
     _init_page = st.query_params.get("page", PAGE_KEYS[0])
     st.session_state.page = _init_page if _init_page in PAGE_KEYS else PAGE_KEYS[0]
+
+_query_page = st.query_params.get("page")
+if _query_page in PAGE_KEYS:
+    st.session_state.page = _query_page
 
 _query_lang = st.query_params.get("lang")
 if _query_lang in ("fi", "en"):
@@ -332,7 +336,7 @@ def run_pipeline(raw: pd.DataFrame, forecast_method: str,
 
 
 def _nav_pills_key() -> str:
-    return f"nav_pills_v2_{st.session_state.lang}"
+    return f"nav_pills_v3_{st.session_state.lang}"
 
 
 def _apply_pending_nav() -> None:
@@ -404,7 +408,7 @@ def render_top_bar() -> str:
         selected_page = st.pills(
             "navigation",
             PAGE_KEYS,
-            format_func=lambda k: t(f"page_{k}", st.session_state.lang),
+            format_func=lambda k: page_label(k, st.session_state.lang),
             label_visibility="collapsed",
             key=_nav_pills_key(),
         )
@@ -443,7 +447,7 @@ if st.sidebar.button(txt("page_automation"), width="stretch"):
     st.session_state._pending_page = "automation"
     st.rerun()
 
-if st.sidebar.button(txt("page_info"), width="stretch"):
+if st.sidebar.button(page_label("info"), width="stretch"):
     st.session_state._pending_page = "info"
     st.rerun()
 

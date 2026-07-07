@@ -348,10 +348,72 @@ PAGE_KEYS = [
 RISK_LEVELS = ["Low", "Medium", "High", "Critical"]
 PRIORITIES = ["Urgent", "High", "Medium", "Normal"]
 
+# Hardcoded fallbacks so labels stay correct even if TEXTS is stale (e.g. cloud cache).
+PAGE_LABEL_FALLBACKS: dict[str, dict[str, str]] = {
+    "fi": {
+        "overview": "Yleiskatsaus",
+        "info": "Metodologia",
+        "inventory_risk": "Varastoriski",
+        "demand_forecast": "Kysyntäennuste",
+        "suppliers": "Toimittajat",
+        "slow_movers": "Hidas varasto",
+        "purchases": "Ostosuositukset",
+        "report": "AI-viikkoraportti",
+        "automation": "Automaatio",
+    },
+    "en": {
+        "overview": "Overview",
+        "info": "Methodology",
+        "inventory_risk": "Inventory risk",
+        "demand_forecast": "Demand forecast",
+        "suppliers": "Supplier performance",
+        "slow_movers": "Slow-moving inventory",
+        "purchases": "Purchase recommendations",
+        "report": "AI weekly report",
+        "automation": "Automation",
+    },
+}
+
+INFO_TEXT_FALLBACKS: dict[str, dict[str, str]] = {
+    "fi": {
+        "info_title": "Metodologia ja laskentalogiikka",
+        "info_caption": (
+            "Kaikki kaavat, painot ja ennustemenetelmät selitettynä. "
+            "Sisältö vastaa suoraan lähdekoodin toteutusta."
+        ),
+    },
+    "en": {
+        "info_title": "Methodology and formulas",
+        "info_caption": (
+            "All formulas, weights and forecasting methods explained. "
+            "Content mirrors the source code implementation."
+        ),
+    },
+}
+
 
 def t(key: str, lang: str = "fi", **kwargs) -> str:
-    text = TEXTS.get(lang, TEXTS["fi"]).get(key, key)
+    text = None
+    for code in (lang, "fi", "en"):
+        text = TEXTS.get(code, {}).get(key)
+        if text is not None:
+            break
+    if text is None:
+        text = INFO_TEXT_FALLBACKS.get(lang, INFO_TEXT_FALLBACKS["fi"]).get(key)
+    if text is None and key.startswith("page_"):
+        page_key = key.removeprefix("page_")
+        text = PAGE_LABEL_FALLBACKS.get(lang, PAGE_LABEL_FALLBACKS["fi"]).get(page_key)
+    if text is None:
+        text = key
     return text.format(**kwargs) if kwargs else text
+
+
+def page_label(page_key: str, lang: str = "fi") -> str:
+    """Navigation label for a PAGE_KEYS entry."""
+    translated = t(f"page_{page_key}", lang)
+    if translated != f"page_{page_key}":
+        return translated
+    return PAGE_LABEL_FALLBACKS.get(lang, PAGE_LABEL_FALLBACKS["fi"])[page_key]
 
 
 def risk_label(level: str, lang: str) -> str:
