@@ -38,6 +38,7 @@ from src.i18n import (
     PAGE_KEYS, PRIORITIES, RISK_LEVELS,
     kind_label, priority_label, risk_label, t, urgency_label,
 )
+from src.methodology_docs import get_methodology_sections
 
 # ---------------------------------------------------------------------------
 # Page setup & styling
@@ -331,7 +332,7 @@ def run_pipeline(raw: pd.DataFrame, forecast_method: str,
 
 
 def _nav_pills_key() -> str:
-    return f"nav_pills_{st.session_state.lang}"
+    return f"nav_pills_v2_{st.session_state.lang}"
 
 
 def _apply_pending_nav() -> None:
@@ -440,6 +441,10 @@ run_clicked = st.sidebar.button(txt("run_analysis"), type="primary", width="stre
 
 if st.sidebar.button(txt("page_automation"), width="stretch"):
     st.session_state._pending_page = "automation"
+    st.rerun()
+
+if st.sidebar.button(txt("page_info"), width="stretch"):
+    st.session_state._pending_page = "info"
     st.rerun()
 
 _stale_results = (
@@ -1022,6 +1027,18 @@ def page_automation():
             )
 
 
+def page_info():
+    st.title(txt("info_title"))
+    st.caption(txt("info_caption"))
+
+    sections = get_methodology_sections(st.session_state.lang)
+    tab_labels = [label for label, _ in sections]
+    tabs = st.tabs(tab_labels)
+    for tab, (_, content) in zip(tabs, sections):
+        with tab:
+            st.markdown(content)
+
+
 # ---------------------------------------------------------------------------
 # Router
 # ---------------------------------------------------------------------------
@@ -1035,5 +1052,6 @@ PAGES = {
     "purchases": page_purchases,
     "report": page_report,
     "automation": page_automation,
+    "info": page_info,
 }
 PAGES[page]()

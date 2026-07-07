@@ -24,6 +24,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "page_purchases": "Ostosuositukset",
         "page_report": "AI-viikkoraportti",
         "page_automation": "Automaatio",
+        "page_info": "Metodologia",
+        "info_title": "Metodologia ja laskentalogiikka",
+        "info_caption": "Kaikki kaavat, painot ja ennustemenetelmät selitettynä. "
+                        "Sisältö vastaa suoraan lähdekoodin toteutusta.",
         "copilot_title": "AI Supply Chain Copilot",
         "copilot_caption": "Tämän viikon tärkeimmät toimenpiteet kiireellisyysjärjestyksessä. "
                            "Jokainen suositus perustuu alla olevaan analytiikkaan.",
@@ -184,6 +188,10 @@ TEXTS: dict[str, dict[str, str]] = {
         "page_purchases": "Purchase recommendations",
         "page_report": "AI weekly report",
         "page_automation": "Automation",
+        "page_info": "Methodology",
+        "info_title": "Methodology and formulas",
+        "info_caption": "All formulas, weights and forecasting methods explained. "
+                        "Content mirrors the source code implementation.",
         "copilot_title": "AI Supply Chain Copilot",
         "copilot_caption": "Top recommended actions this week, ranked by urgency. "
                            "Each recommendation is fully traceable to the analytics below.",
@@ -327,6 +335,7 @@ TEXTS: dict[str, dict[str, str]] = {
 
 PAGE_KEYS = [
     "overview",
+    "info",
     "inventory_risk",
     "demand_forecast",
     "suppliers",
